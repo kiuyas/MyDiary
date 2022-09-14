@@ -13,11 +13,29 @@ import android.widget.GridView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+
+    /** 本体Documentsフォルダのパス */
+    private static final String DOCUMENT_FOLDER = "/storage/self/Documents";
+
+    /** 保存データのフィールドセパレータ */
+    private static final String FIELD_SEPARATOR = ",";
+
+    /** 保存データの行セパレータ */
+    private static final String LINE_SEPARATOR = "\n";
 
     /** 曜日文字列 */
     private static final String[] DAY_OF_WEEK_NAMES = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
@@ -127,6 +145,7 @@ public class MainActivity extends AppCompatActivity {
                     public void execute(String input) {
                         contents[position] = input;
                         ((GridView)findViewById(R.id.gridview)).invalidateViews();
+                        saveText();
                     }
                 });
             }
@@ -195,6 +214,8 @@ public class MainActivity extends AppCompatActivity {
         for(int i = 0; i < 31; i++) {
             contents[i] = "";
         }
+
+        loadText();
     }
 
     /**
@@ -249,6 +270,93 @@ public class MainActivity extends AppCompatActivity {
                             }
                         })
                 .show();
+    }
+
+    // ============================================================
+
+    private String getFileName() {
+        return String.format("diary_save_%d_%02d.txt", year, month + 1);
+    }
+
+    private void saveText(){
+        String message = null;
+
+        String fileName = getFileName();
+        String inputText = makeSaveData();
+        OutputStreamWriter writer = null;
+        try {
+            writer = new OutputStreamWriter(openFileOutput(fileName, MODE_PRIVATE), "UTF-8");
+            writer.write(inputText);
+        } catch (FileNotFoundException e) {
+            message = e.getMessage();
+            e.printStackTrace();
+        } catch (IOException e) {
+            message = e.getMessage();
+            e.printStackTrace();
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.flush();
+                    writer.close();
+                    writer.close();
+                } catch (Exception e) {
+                }
+            }
+        }
+
+        if (message != null) {
+            message = "保存に失敗しました。" + message;
+            Toast.makeText(getBaseContext(), message, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String makeSaveData() {
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0; i < 31; i++) {
+            sb.append(String.format("%d%s%s%s", i + 1, FIELD_SEPARATOR,
+                    contents[i], // TODO 入力内容に半角カンマや改行が含まれる場合の処理
+                    LINE_SEPARATOR));
+        }
+        return sb.toString();
+    }
+
+    private void loadText() {
+        String message = null;
+        String fileName = getFileName();
+        BufferedReader reader = null;
+        try {
+            String text;
+            FileInputStream inputStream = openFileInput(fileName);
+            reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+            while( (text = reader.readLine()) != null ){
+                String[] s = text.split(FIELD_SEPARATOR);
+                try {
+                    int d = Integer.parseInt(s[0]);
+                    if (d >= 1 && d <= 31) {
+                        contents[d - 1] = s.length == 2 ? s[1] : "";
+                    }
+                } catch (NumberFormatException e) {
+                }
+            }
+        } catch (FileNotFoundException e) {
+            message = e.getMessage();
+            e.printStackTrace();
+        } catch (IOException e) {
+            message = e.getMessage();
+            e.printStackTrace();
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Exception e) {
+                }
+            }
+        }
+
+        if (message != null) {
+            message = "保存に失敗しました。" + message;
+            Toast.makeText(getBaseContext(), message, Toast.LENGTH_LONG).show();
+        }
     }
 }
 
